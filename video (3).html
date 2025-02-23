@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مشاهدة القناة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+        video {
+            width: 80%;
+            max-width: 800px;
+            height: auto;
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #ff5722;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .back-btn:hover {
+            background-color: #e64a19;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>مشاهدة القناة</h1>
+
+    <video id="player" controls autoplay>
+        <source id="videoSource" src="" type="application/x-mpegURL">
+        متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+
+    <br>
+    <a href="index.html" class="back-btn">العودة إلى القائمة</a>
+
+    <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const videoUrl = getQueryParam('url');
+        if (videoUrl) {
+            document.getElementById('videoSource').src = videoUrl;
+            document.getElementById('player').load();
+        } else {
+            alert('لم يتم العثور على رابط القناة.');
+        }
+    </script>
+
+</body>
+</html>
