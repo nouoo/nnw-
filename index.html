@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NACERO TV</title>
-    <style>
+    
+<style>
         body {
             font-family: Arial, sans-serif;
             background-color: #1a1a1a;
@@ -106,7 +107,7 @@
             color: red;
             font-size: 18px;
             margin-top: 20px;
-        }
+            }
     </style>
 </head>
 <body>
@@ -143,7 +144,11 @@
 
         try {
             for (const url of m3uUrls) {
-                await loadM3U(url);
+                try {
+                    await loadM3U(url);
+                } catch (error) {
+                    console.error(`خطأ في تحميل الملف: ${url}`, error);
+                }
             }
             localStorage.setItem('channels', JSON.stringify(allChannels));
             document.getElementById('loading').style.display = 'none';
@@ -155,15 +160,10 @@
     }
 
     async function loadM3U(url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('فشل في جلب القنوات');
-            const data = await response.text();
-            parseM3U(data);
-        } catch (error) {
-            console.error(error);
-            throw new Error(`خطأ في تحميل الملف: ${url}`);
-        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('فشل في جلب القنوات');
+        const data = await response.text();
+        parseM3U(data);
     }
 
     function parseM3U(data) {
