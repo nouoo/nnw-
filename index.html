@@ -1,15 +1,22 @@
-<!DOCTYPE html><html lang="ar">
+<!DOCTYPE html>
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قنوات IPTV</title>
+    <title>NACERO TV</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #000;
+            background-color: #1a1a1a;
             text-align: center;
             color: white;
             padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            font-size: 3rem;
+            color: #ffcc00;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
         .search-box {
             margin-bottom: 20px;
@@ -21,6 +28,8 @@
             border-radius: 5px;
             border: none;
             font-size: 16px;
+            background-color: #333;
+            color: white;
         }
         .categories {
             display: flex;
@@ -32,7 +41,7 @@
         .category {
             width: 150px;
             height: 150px;
-            background-color: black;
+            background-color: #333;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -41,14 +50,16 @@
             text-transform: capitalize;
             box-shadow: 0 4px 6px rgba(255, 255, 255, 0.2);
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .category:hover {
+            transform: scale(1.05);
             box-shadow: 0 6px 10px rgba(255, 255, 255, 0.4);
         }
         .channel {
-            background-color: white;
-            color: black;
-            padding: 10px;
+            background-color: #333;
+            color: white;
+            padding: 15px;
             margin: 10px auto;
             width: 80%;
             max-width: 400px;
@@ -68,102 +79,165 @@
             cursor: pointer;
             border-radius: 5px;
             margin-top: 10px;
+            width: 100%;
+            font-size: 16px;
         }
         .channel button:hover {
             background-color: #218838;
+        }
+        .back-button {
+            background-color: #ffcc00;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+            display: none; /* مخفي بشكل افتراضي */
+        }
+        .back-button:hover {
+            background-color: #e6b800;
+        }
+        .hidden {
+            display: none;
+        }
+        .error-message {
+            color: red;
+            font-size: 18px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>NACERO TV</h1>
-    <div class="search-box">
+    <p id="loading">جاري تحميل القنوات...</p>
+    <div class="search-box hidden" id="searchBox">
         <input type="text" id="search" placeholder="ابحث عن قناة..." oninput="searchChannels()">
     </div>
-    <div class="categories">
+    <button class="back-button" id="backButton" onclick="showCategories()">الرجوع إلى الفئات</button>
+    <div class="categories" id="categories">
         <div class="category" onclick="showCategory('Sports')">Sports</div>
         <div class="category" onclick="showCategory('Movies')">Movies</div>
         <div class="category" onclick="showCategory('News')">News</div>
         <div class="category" onclick="showCategory('Others')">Others</div>
     </div>
     <div id="channels"></div>
+    <p id="errorMessage" class="error-message hidden"></p>
+
     <script>
-    const m3uUrl = 'https://iptv-org.github.io/iptv/index.m3u';
-    let allChannels = {};
-    let filteredChannels = [];async function fetchChannels() {
-    try {
-        const response = await fetch(m3uUrl);
-        if (!response.ok) throw new Error('فشل في جلب القنوات');
-        const data = await response.text();
-        allChannels = parseM3U(data);
-    } catch (error) {
-        console.error(error);
-        alert('حدث خطأ في تحميل القنوات');
-    }
-}
+    const m3uUrls = [
+        'https://iptv-org.github.io/iptv/index.m3u',
+        'ARABIPTV.m3u' // تأكد من أن هذا الرابط صحيح وقابل للوصول
+    ];
+    let allChannels = { Sports: [], Movies: [], News: [], Others: [] };
+    let filteredChannels = [];
 
-function parseM3U(data) {
-    const categories = { Sports: [], Movies: [], News: [], Others: [] };
-    const lines = data.split('\n');
-    let channel = {};
-
-    lines.forEach(line => {
-        if (line.startsWith('#EXTINF:')) {
-            const info = line.split(',');
-            channel.name = info[1]?.trim() || 'قناة غير معروفة';
-            const categoryMatch = line.match(/group-title="([^"]+)"/);
-            channel.category = categoryMatch ? categoryMatch[1] : 'Others';
-            const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-            channel.logo = logoMatch ? logoMatch[1] : '';
-        } else if (line.startsWith('http')) {
-            channel.url = line.trim();
-            if (categories[channel.category]) {
-                categories[channel.category].push({ ...channel });
-            } else {
-                categories['Others'].push({ ...channel });
-            }
-            channel = {};
+    async function fetchChannels() {
+        const savedChannels = localStorage.getItem('channels');
+        if (savedChannels) {
+            allChannels = JSON.parse(savedChannels);
+            document.getElementById('loading').style.display = 'none';
+            return;
         }
-    });
-    return categories;
-}
 
-function showCategory(category) {
-    filteredChannels = allChannels[category] || [];
-    displayChannels(filteredChannels);
-}
-
-function displayChannels(channels) {
-    const container = document.getElementById('channels');
-    container.innerHTML = '';
-    if (!channels.length) {
-        container.innerHTML = '<p>لا توجد قنوات متاحة</p>';
-        return;
+        try {
+            for (const url of m3uUrls) {
+                await loadM3U(url);
+            }
+            localStorage.setItem('channels', JSON.stringify(allChannels));
+            document.getElementById('loading').style.display = 'none';
+        } catch (error) {
+            document.getElementById('loading').textContent = 'فشل في تحميل القنوات';
+            document.getElementById('errorMessage').textContent = error.message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+        }
     }
 
-    channels.forEach(channel => {
-        const channelDiv = document.createElement('div');
-        channelDiv.className = 'channel';
-        channelDiv.innerHTML = `
-            <h3>${channel.name}</h3>
-            ${channel.logo ? `<img src="${channel.logo}" alt="${channel.name}">` : ''}
-            <button onclick="watchChannel('${channel.url}')">مشاهدة القناة</button>
-        `;
-        container.appendChild(channelDiv);
-    });
-}
+    async function loadM3U(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('فشل في جلب القنوات');
+            const data = await response.text();
+            parseM3U(data);
+        } catch (error) {
+            console.error(error);
+            throw new Error(`خطأ في تحميل الملف: ${url}`);
+        }
+    }
 
-function searchChannels() {
-    const query = document.getElementById('search').value.toLowerCase();
-    const results = filteredChannels.filter(channel => channel.name.toLowerCase().includes(query));
-    displayChannels(results);
-}
+    function parseM3U(data) {
+        const lines = data.split('\n');
+        let channel = {};
+        
+        lines.forEach(line => {
+            if (line.startsWith('#EXTINF:')) {
+                const info = line.split(',');
+                channel.name = info[1]?.trim() || 'قناة غير معروفة';
+                const categoryMatch = line.match(/group-title="([^"]+)"/);
+                channel.category = categoryMatch ? categoryMatch[1] : 'Others';
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                channel.logo = logoMatch ? logoMatch[1] : '';
+            } else if (line.startsWith('http')) {
+                channel.url = line.trim();
+                if (allChannels[channel.category]) {
+                    allChannels[channel.category].push({ ...channel });
+                } else {
+                    allChannels['Others'].push({ ...channel });
+                }
+                channel = {};
+            }
+        });
 
-function watchChannel(url) {
-    window.location.href = `video.html?url=${encodeURIComponent(url)}`;
-}
+        localStorage.setItem('channels', JSON.stringify(allChannels));
+    }
 
-window.onload = fetchChannels;
-</script>
+    function showCategory(category) {
+        filteredChannels = allChannels[category] || [];
+        document.getElementById('categories').classList.add('hidden');
+        document.getElementById('searchBox').classList.remove('hidden');
+        document.getElementById('backButton').style.display = 'block';
+        displayChannels(filteredChannels);
+    }
 
+    function showCategories() {
+        document.getElementById('categories').classList.remove('hidden');
+        document.getElementById('searchBox').classList.add('hidden');
+        document.getElementById('backButton').style.display = 'none';
+        document.getElementById('channels').innerHTML = '';
+    }
+
+    function displayChannels(channels) {
+        const container = document.getElementById('channels');
+        container.innerHTML = '';
+        if (!channels.length) {
+            container.innerHTML = '<p>لا توجد قنوات متاحة</p>';
+            return;
+        }
+
+        channels.forEach(channel => {
+            const channelDiv = document.createElement('div');
+            channelDiv.className = 'channel';
+            channelDiv.innerHTML = `
+                <h3>${channel.name}</h3>
+                ${channel.logo ? `<img src="${channel.logo}" alt="${channel.name}">` : ''}
+                <button onclick="watchChannel('${channel.url}')">مشاهدة القناة</button>
+            `;
+            container.appendChild(channelDiv);
+        });
+    }
+
+    function searchChannels() {
+        const query = document.getElementById('search').value.toLowerCase();
+        const results = filteredChannels.filter(channel => channel.name.toLowerCase().includes(query));
+        displayChannels(results);
+    }
+
+    function watchChannel(url) {
+        window.location.href = `video.html?url=${encodeURIComponent(url)}`;
+    }
+
+    window.onload = fetchChannels;
+    </script>
 </body>
 </html>
